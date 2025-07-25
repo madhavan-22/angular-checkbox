@@ -1,0 +1,12 @@
+/* src/app/app.component.css */
+
+#app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* This is crucial for Univer to be visible */
+#univer-container {
+  flex-grow: 1; /* Make the container fill the available space */
+}
