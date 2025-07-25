@@ -18,10 +18,12 @@ import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
 import { UniverSheetsPlugin } from '@univerjs/sheets';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
+// Import the correct command and the logic plugin
 import {
     UniverSheetsDataValidationPlugin,
     AddSheetDataValidationCommand,
 } from '@univerjs/sheets-data-validation';
+// THE REAL FIX: Import the mandatory UI plugin that solves the LocaleService runtime error
 import { UniverSheetsDataValidationUIPlugin } from '@univerjs/sheets-data-validation-ui';
 
 @Component({
@@ -42,7 +44,7 @@ export class AppComponent implements AfterViewInit {
             locale: LocaleType.EN_US,
         });
 
-        // Register all necessary plugins in the correct order.
+        // The registration order remains critical.
         this.univer.registerPlugin(UniverRenderEnginePlugin);
         this.univer.registerPlugin(UniverFormulaEnginePlugin);
         this.univer.registerPlugin(UniverDocsPlugin);
@@ -55,15 +57,13 @@ export class AppComponent implements AfterViewInit {
         this.univer.registerPlugin(UniverDocsUIPlugin);
         this.univer.registerPlugin(UniverSheetsUIPlugin);
         this.univer.registerPlugin(UniverSheetsFormulaPlugin);
-        
-        // Register both the logic and the UI plugins for the checkbox feature (Data Validation).
+
+        // Register BOTH the logic and the UI plugins for data validation.
         this.univer.registerPlugin(UniverSheetsDataValidationPlugin);
         this.univer.registerPlugin(UniverSheetsDataValidationUIPlugin);
 
-        // Create the spreadsheet instance.
         this.univer.createUniverSheet(workbookData);
 
-        // Programmatically add the checkbox after the sheet is created.
         this.addCheckboxValidation();
     }
 
@@ -78,7 +78,6 @@ export class AppComponent implements AfterViewInit {
         const unitId = workbook.getUnitId();
         const subUnitId = worksheet.getSheetId();
 
-        // Execute the command to add a checkbox data validation rule.
         commandService.executeCommand(AddSheetDataValidationCommand.id, {
             unitId,
             subUnitId,
