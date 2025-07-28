@@ -1,28 +1,10 @@
 // src/app/app.component.ts
 
 import { Component, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
-import {
-    Univer,
-    ICommandService,
-    IUniverInstanceService,
-    type IWorkbookData,
-    LocaleType,
-    DataValidationType,
-} from '@univerjs/core';
-import { defaultTheme } from '@univerjs/design';
-import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
-import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
-import { UniverUIPlugin } from '@univerjs/ui';
-import { UniverDocsPlugin } from '@univerjs/docs';
-import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
-import { UniverSheetsPlugin } from '@univerjs/sheets';
-import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
-import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
-import {
-    UniverSheetsDataValidationPlugin,
-    AddSheetDataValidationCommand,
-} from '@univerjs/sheets-data-validation';
-import { UniverSheetsDataValidationUIPlugin } from '@univerjs/sheets-data-validation-ui';
+// THE REAL FIX: The Facade API is the ONLY entry point we need.
+import { FUniver, UniverInstanceType } from '@univerjs/facade';
+import type { IWorkbookData } from '@univerjs/core';
+import { AddDataValidationMutation } from '@univerjs/sheets-data-validation';
 
 @Component({
     selector: 'app-root',
@@ -31,73 +13,51 @@ import { UniverSheetsDataValidationUIPlugin } from '@univerjs/sheets-data-valida
 })
 export class AppComponent implements AfterViewInit {
     @ViewChild('univerContainer') univerContainer!: ElementRef;
-    univer!: Univer;
+    univerAPI: any;
     workbookId = 'workbook-demo-checkbox';
 
     ngAfterViewInit(): void {
         const workbookData = this.createDemoWorkbookData();
 
-        this.univer = new Univer({
-            theme: defaultTheme,
-            locale: LocaleType.EN_US,
-        });
-
-        // Register all necessary plugins in the correct order.
-        this.univer.registerPlugin(UniverRenderEnginePlugin);
-        this.univer.registerPlugin(UniverFormulaEnginePlugin);
-        this.univer.registerPlugin(UniverDocsPlugin);
-        this.univer.registerPlugin(UniverSheetsPlugin);
-        this.univer.registerPlugin(UniverUIPlugin, {
+        // THE FINAL SOLUTION: The Facade API handles EVERYTHING.
+        // It creates the Univer instance, registers all necessary plugins,
+        // and sets up locales internally. This is the one-line solution.
+        this.univerAPI = FUniver.newAPI({
             container: this.univerContainer.nativeElement,
             header: true,
             footer: true,
         });
-        this.univer.registerPlugin(UniverDocsUIPlugin);
-        this.univer.registerPlugin(UniverSheetsUIPlugin);
-        this.univer.registerPlugin(UniverSheetsFormulaPlugin);
-        this.univer.registerPlugin(UniverSheetsDataValidationPlugin);
-        this.univer.registerPlugin(UniverSheetsDataValidationUIPlugin);
 
-        // Create the spreadsheet instance.
-        this.univer.createUniverSheet(workbookData);
+        // Use the API object to create the sheet.
+        const workbook = this.univerAPI.createUnit(UniverInstanceType.UNIVER_SHEET, workbookData);
 
-        // Programmatically add the checkbox after the sheet is created.
-        this.addCheckboxValidation();
+        // Pass the workbook facade to our function.
+        this.addCheckboxValidation(workbook);
     }
 
-    private addCheckboxValidation(): void {
-        const injector = this.univer.__getInjector();
-        const commandService = injector.get(ICommandService);
-        const univerInstanceService = injector.get(IUniverInstanceService);
-        const workbook = univerInstanceService.getUniverSheetInstance(this.workbookId);
-        if (!workbook) return;
+    private addCheckboxValidation(workbook: any): void {
+        // Get the command service directly from the workbook facade.
+        const commandService = workbook.getCommandService();
         const worksheet = workbook.getActiveSheet();
         if (!worksheet) return;
         const unitId = workbook.getUnitId();
         const subUnitId = worksheet.getSheetId();
 
-        // Execute the command to add a checkbox data validation rule.
-        commandService.executeCommand(AddSheetDataValidationCommand.id, {
+        commandService.executeCommand(AddDataValidationMutation.id, {
             unitId,
             subUnitId,
             rule: {
-                type: DataValidationType.CHECKBOX,
+                type: 'checkbox',
                 ranges: [{ startRow: 0, endRow: 2, startColumn: 0, endColumn: 0 }],
-                rule: {
-                    checkedValue: true,
-                    uncheckedValue: false,
-                },
+                rule: { checkedValue: true, uncheckedValue: false },
             },
         });
     }
 
-    private createDemoWorkbookData(): IWorkbookData {
+    private createDemoWorkbookData(): Partial<IWorkbookData> {
+        // The facade's `createUnit` method uses a Partial type, so we don't need all properties.
         return {
             id: this.workbookId,
-            name: 'Univer Docs',
-            appVersion: '3.0.0-alpha',
-            locale: LocaleType.EN_US,
-            styles: {},
             sheetOrder: ['sheet-01'],
             sheets: {
                 'sheet-01': {
